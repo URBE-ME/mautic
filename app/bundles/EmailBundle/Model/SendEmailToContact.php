@@ -182,7 +182,7 @@ class SendEmailToContact
     /**
      * @throws FailedToSendToContactException
      */
-    public function send(): void
+    public function send(): string
     {
         if ($this->mailer->inTokenizationMode()) {
             [$success, $errors] = $this->queueTokenizedEmail();
@@ -195,6 +195,8 @@ class SendEmailToContact
             unset($errors['failures']);
             $this->failContact(false, implode('; ', (array) $errors));
         }
+
+        return $this->mailer->getIdHash();
     }
 
     /**

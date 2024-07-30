@@ -1447,9 +1447,8 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
 
                 foreach ($contacts as $contact) {
                     try {
-                        $this->sendModel->setContact($contact, $tokens)
+                        $result = $this->sendModel->setContact($contact, $tokens)
                             ->send();
-
                         // Update $emailSetting so campaign a/b tests are handled correctly
                         ++$emailSettings[$parentId]['sentCount'];
 
@@ -1500,7 +1499,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             return $singleEmail ? $errorMessages[$singleEmail] : $errorMessages;
         }
 
-        return $singleEmail ? $success : $failedContacts;
+        return $singleEmail ? $result : $failedContacts;
     }
 
     /**

@@ -190,7 +190,8 @@ class EmailApiController extends CommonApiController
         if (is_bool($result)) {
             $response['success'] = $result;
         } else {
-            $response['failed'] = $result;
+            $response['success']   = true;
+            $response['sender_id'] = $result;
         }
 
         $view = $this->view($response, Response::HTTP_OK);
