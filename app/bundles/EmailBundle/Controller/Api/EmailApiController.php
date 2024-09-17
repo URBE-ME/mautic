@@ -6,6 +6,7 @@ use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\Persistence\ManagerRegistry;
 use Mautic\ApiBundle\Controller\CommonApiController;
 use Mautic\ApiBundle\Helper\EntityResultHelper;
+use Mautic\ChannelBundle\Entity\MessageQueue;
 use Mautic\CoreBundle\Factory\MauticFactory;
 use Mautic\CoreBundle\Factory\ModelFactory;
 use Mautic\CoreBundle\Helper\AppVersion;
@@ -184,6 +185,7 @@ class EmailApiController extends CommonApiController
                 'return_errors'     => true,
                 'ignoreDNC'         => true,
                 'email_type'        => MailHelper::EMAIL_TYPE_TRANSACTIONAL,
+                'email_priority'    => MessageQueue::PRIORITY_HIGH,
             ]
         );
 

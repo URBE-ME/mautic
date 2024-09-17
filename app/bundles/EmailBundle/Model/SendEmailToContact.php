@@ -2,6 +2,7 @@
 
 namespace Mautic\EmailBundle\Model;
 
+use Mautic\ChannelBundle\Entity\MessageQueue;
 use Mautic\EmailBundle\Entity\Email;
 use Mautic\EmailBundle\Exception\FailedToSendToContactException;
 use Mautic\EmailBundle\Helper\MailHelper;
@@ -182,9 +183,9 @@ class SendEmailToContact
     /**
      * @throws FailedToSendToContactException
      */
-    public function send(): string
+    public function send($emailPriority = MessageQueue::PRIORITY_NORMAL): string
     {
-        if ($this->mailer->inTokenizationMode()) {
+        if ($this->mailer->inTokenizationMode() && MessageQueue::PRIORITY_HIGH !== $emailPriority) {
             [$success, $errors] = $this->queueTokenizedEmail();
         } else {
             [$success, $errors] = $this->sendStandardEmail();

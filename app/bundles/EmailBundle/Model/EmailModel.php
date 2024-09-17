@@ -116,6 +116,9 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         CoreParametersHelper $coreParametersHelper,
         private EmailStatModel $emailStatModel
     ) {
+        // remove memory limit
+        ini_set('memory_limit', '-1');
+
         parent::__construct($em, $security, $dispatcher, $router, $translator, $userHelper, $mauticLogger, $coreParametersHelper);
     }
 
@@ -1448,7 +1451,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                 foreach ($contacts as $contact) {
                     try {
                         $result = $this->sendModel->setContact($contact, $tokens)
-                            ->send();
+                            ->send($emailPriority);
                         // Update $emailSetting so campaign a/b tests are handled correctly
                         ++$emailSettings[$parentId]['sentCount'];
 
