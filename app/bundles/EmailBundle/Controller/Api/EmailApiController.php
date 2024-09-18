@@ -29,7 +29,6 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
@@ -43,7 +42,6 @@ class EmailApiController extends CommonApiController
      * @var EmailModel|null
      */
     protected $model;
-
     private $bus;
 
     /**
@@ -53,9 +51,11 @@ class EmailApiController extends CommonApiController
 
     public function __construct(CorePermissions $security, Translator $translator, EntityResultHelper $entityResultHelper, RouterInterface $router, FormFactoryInterface $formFactory, AppVersion $appVersion, RequestStack $requestStack, ManagerRegistry $doctrine, ModelFactory $modelFactory, EventDispatcherInterface $dispatcher, CoreParametersHelper $coreParametersHelper, MauticFactory $factory)
     {
+        //        $this->bus = $factory->getBus();
         $emailModel = $modelFactory->getModel('email');
         \assert($emailModel instanceof EmailModel);
 
+        $this->bus              = $dispatcher;
         $this->model            = $emailModel;
         $this->entityClass      = Email::class;
         $this->entityNameOne    = 'email';
@@ -71,7 +71,6 @@ class EmailApiController extends CommonApiController
             ],
         ];
 
-        $this->bus = MessageBusInterface::class;
         parent::__construct($security, $translator, $entityResultHelper, $router, $formFactory, $appVersion, $requestStack, $doctrine, $modelFactory, $dispatcher, $coreParametersHelper, $factory);
     }
 
@@ -96,11 +95,9 @@ class EmailApiController extends CommonApiController
      *
      * @param int $id Email ID
      *
-     * @return Response
-     *
      * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
      */
-    public function sendAction(Request $request, $id)
+    public function sendAction(Request $request, $id): Response
     {
         $entity = $this->model->getEntity($id);
 
@@ -117,7 +114,6 @@ class EmailApiController extends CommonApiController
         $batch = $request->request->get('batch', null);
 
         // [$count, $failed] = $this->model->sendEmailToLists($entity, $lists, $limit, $batch);
-        //        $this->bus->dispatch(new SendCampaignCommand($entity, $lists, $limit, $batch));
 
         $view = $this->view(
             [
