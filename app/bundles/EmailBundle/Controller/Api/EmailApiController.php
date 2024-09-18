@@ -51,7 +51,7 @@ class EmailApiController extends CommonApiController
      */
     protected $extraGetEntitiesArguments = ['ignoreListJoin' => true];
 
-    public function __construct(CorePermissions $security, Translator $translator, EntityResultHelper $entityResultHelper, RouterInterface $router, FormFactoryInterface $formFactory, AppVersion $appVersion, RequestStack $requestStack, ManagerRegistry $doctrine, ModelFactory $modelFactory, EventDispatcherInterface $dispatcher, CoreParametersHelper $coreParametersHelper, MauticFactory $factory, MessageBusInterface $bus)
+    public function __construct(CorePermissions $security, Translator $translator, EntityResultHelper $entityResultHelper, RouterInterface $router, FormFactoryInterface $formFactory, AppVersion $appVersion, RequestStack $requestStack, ManagerRegistry $doctrine, ModelFactory $modelFactory, EventDispatcherInterface $dispatcher, CoreParametersHelper $coreParametersHelper, MauticFactory $factory)
     {
         $emailModel = $modelFactory->getModel('email');
         \assert($emailModel instanceof EmailModel);
@@ -71,7 +71,7 @@ class EmailApiController extends CommonApiController
             ],
         ];
 
-        $this->bus = $bus;
+        $this->bus = MessageBusInterface::class;
         parent::__construct($security, $translator, $entityResultHelper, $router, $formFactory, $appVersion, $requestStack, $doctrine, $modelFactory, $dispatcher, $coreParametersHelper, $factory);
     }
 
