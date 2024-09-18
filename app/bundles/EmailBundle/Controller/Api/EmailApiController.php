@@ -7,6 +7,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Mautic\ApiBundle\Controller\CommonApiController;
 use Mautic\ApiBundle\Helper\EntityResultHelper;
 use Mautic\ChannelBundle\Entity\MessageQueue;
+use Mautic\CoreBundle\Command\SendCampaignCommand;
 use Mautic\CoreBundle\Factory\MauticFactory;
 use Mautic\CoreBundle\Factory\ModelFactory;
 use Mautic\CoreBundle\Helper\AppVersion;
@@ -28,6 +29,7 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
@@ -42,12 +44,14 @@ class EmailApiController extends CommonApiController
      */
     protected $model;
 
+    private $bus;
+
     /**
      * @var array<string, mixed>
      */
     protected $extraGetEntitiesArguments = ['ignoreListJoin' => true];
 
-    public function __construct(CorePermissions $security, Translator $translator, EntityResultHelper $entityResultHelper, RouterInterface $router, FormFactoryInterface $formFactory, AppVersion $appVersion, RequestStack $requestStack, ManagerRegistry $doctrine, ModelFactory $modelFactory, EventDispatcherInterface $dispatcher, CoreParametersHelper $coreParametersHelper, MauticFactory $factory)
+    public function __construct(CorePermissions $security, Translator $translator, EntityResultHelper $entityResultHelper, RouterInterface $router, FormFactoryInterface $formFactory, AppVersion $appVersion, RequestStack $requestStack, ManagerRegistry $doctrine, ModelFactory $modelFactory, EventDispatcherInterface $dispatcher, CoreParametersHelper $coreParametersHelper, MauticFactory $factory, MessageBusInterface $bus)
     {
         $emailModel = $modelFactory->getModel('email');
         \assert($emailModel instanceof EmailModel);
@@ -67,6 +71,7 @@ class EmailApiController extends CommonApiController
             ],
         ];
 
+        $this->bus = $bus;
         parent::__construct($security, $translator, $entityResultHelper, $router, $formFactory, $appVersion, $requestStack, $doctrine, $modelFactory, $dispatcher, $coreParametersHelper, $factory);
     }
 
@@ -111,15 +116,8 @@ class EmailApiController extends CommonApiController
         $limit = $request->request->get('limit', null);
         $batch = $request->request->get('batch', null);
 
-        $view = $this->view([
-            'lists' => $lists,
-            'limit' => $limit,
-            'batch' => $batch,
-        ], Response::HTTP_OK);
-
-        return $this->handleView($view);
-
-        [$count, $failed] = $this->model->sendEmailToLists($entity, $lists, $limit, $batch);
+        // [$count, $failed] = $this->model->sendEmailToLists($entity, $lists, $limit, $batch);
+        $this->bus->dispatch(new SendCampaignCommand($entity, json_encode($lists), $limit, $batch));
 
         $view = $this->view(
             [
