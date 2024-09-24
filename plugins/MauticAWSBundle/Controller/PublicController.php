@@ -71,11 +71,12 @@ class PublicController extends CommonFormController
 
         // write on system log on pure PHP
         $log_file = fopen('/var/log/mautic/mautic_sns.log', 'w');
+        fwrite($log_file, 'Receiving webhook from Amazon');
         fwrite($log_file, $request->getContent());
         fclose($log_file);
 
         if (0 !== json_last_error()) {
-            throw new HttpException(400, 'AmazonCallback: Invalid JSON Payload');
+            throw new HttpException(400, 'AmazonCallback: Invalid JSON Payload:'.json_last_error_msg());
         }
 
         if (!isset($payload['Type']) && !isset($payload['eventType'])) {
