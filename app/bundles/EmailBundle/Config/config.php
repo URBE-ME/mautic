@@ -74,7 +74,8 @@ return [
             ],
             'mautic_mailer_transport_callback' => [
                 'path'       => '/mailer/callback',
-                'controller' => 'Mautic\EmailBundle\Controller\PublicController::mailerCallbackAction',
+                //                'controller' => 'Mautic\EmailBundle\Controller\PublicController::mailerCallbackAction',
+                'controller' => 'MauticPlugin\MauticAWSBundle\Controller\PublicController::mailerCallbackAction',
             ],
             'mautic_email_preview' => [
                 'path'       => '/email/preview/{objectId}/{objectType}',
