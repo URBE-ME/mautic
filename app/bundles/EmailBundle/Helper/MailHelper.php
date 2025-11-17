@@ -348,10 +348,16 @@ class MailHelper
             $this->setMessageHeaders();
 
             // Ensure From header is always set before sending
-            // Only set default From if no custom From header was provided
-            $hasCustomFrom = !empty($this->headers) && isset($this->headers['From']);
-            if (empty($this->message->getFrom()) && !$hasCustomFrom) {
-                // If From is not set and no custom From header was provided, ensure we set it from our internal state
+            // If From is not set, try to set it even if a custom From header was provided (in case it failed to apply)
+            if (empty($this->message->getFrom())) {
+                $hasCustomFrom = !empty($this->headers) && isset($this->headers['From']);
+                
+                if ($hasCustomFrom) {
+                    // Custom From was provided but failed to apply - log warning and use default
+                    $this->logError('Custom From header was provided but is invalid or empty after token replacement. Using default From instead.');
+                }
+                
+                // Always ensure we have a From address, even if custom From failed
                 $from = $this->getFrom();
                 if (!$from->isEmpty()) {
                     $this->setMessageFrom($from);
@@ -365,10 +371,6 @@ class MailHelper
                         $this->fatal = true;
                     }
                 }
-            } elseif (empty($this->message->getFrom())) {
-                // Custom From was provided but is invalid/empty - log error but don't override with default
-                $this->logError('Custom From header was provided but is invalid or empty after token replacement.');
-                $this->fatal = true;
             }
 
             if (!$isQueueFlush) {
@@ -1949,7 +1951,8 @@ class MailHelper
                 try {
                     if ($isAddressHeader) {
                         // Handle address headers; support display-name formats and arrays
-                        $isSingleAddressHeader = in_array($headerKeyLower, ['sender'], true);
+                        // From and Sender are single address headers, not multiple
+                        $isSingleAddressHeader = in_array($headerKeyLower, ['from', 'sender'], true);
                         if (is_array($headerValue)) {
                             $addresses = [];
                             // Support associative arrays [email => name] and list arrays
@@ -1984,16 +1987,41 @@ class MailHelper
                             }
                         }
                     }
-                    if ($messageHeaders->has($headerKey)) {
-                        $header = $messageHeaders->get($headerKey);
-                        $header->setBody($headerValue);
+                    
+                    // For From and Sender headers, use the message's dedicated methods for better compatibility
+                    if ($isAddressHeader && in_array($headerKeyLower, ['from', 'sender'], true)) {
+                        if ($headerKeyLower === 'from') {
+                            // From header - use the first address if array, or the single address
+                            $fromAddress = is_array($headerValue) ? ($headerValue[0] ?? null) : $headerValue;
+                            if ($fromAddress instanceof Address) {
+                                $this->message->from($fromAddress);
+                            }
+                        } elseif ($headerKeyLower === 'sender') {
+                            // Sender header - use the first address if array, or the single address
+                            $senderAddress = is_array($headerValue) ? ($headerValue[0] ?? null) : $headerValue;
+                            if ($senderAddress instanceof Address) {
+                                $this->message->sender($senderAddress);
+                            }
+                        }
                     } else {
-                        $messageHeaders->addHeader($headerKey, $headerValue);
+                        // For other headers, use the standard header methods
+                        if ($messageHeaders->has($headerKey)) {
+                            $header = $messageHeaders->get($headerKey);
+                            $header->setBody($headerValue);
+                        } else {
+                            $messageHeaders->addHeader($headerKey, $headerValue);
+                        }
                     }
-                } catch (RfcComplianceException) {
+                } catch (RfcComplianceException $e) {
                     // If the custom address header is invalid, do not remove the existing one; only remove for non-address headers
                     if (!$isAddressHeader) {
                         $messageHeaders->remove($headerKey);
+                    } else {
+                        // For address headers (From, Reply-To, etc.), log the error but keep the existing header
+                        // This is especially important for From header to prevent "missing From" errors
+                        if ($headerKeyLower === 'from') {
+                            $this->logError('Invalid custom From header provided: '.$e->getMessage().'. Using default From instead.');
+                        }
                     }
                 }
             }
