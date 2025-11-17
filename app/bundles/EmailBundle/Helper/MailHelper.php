@@ -1887,18 +1887,35 @@ class MailHelper
             // Replace tokens
             $messageHeaders = $this->message->getHeaders();
             foreach ($headers as $headerKey => $headerValue) {
-                $headerValue = str_ireplace(array_keys($tokens), $tokens, $headerValue);
+                $headerKeyLower   = strtolower($headerKey);
+                $isAddressHeader  = in_array($headerKeyLower, ['from', 'sender', 'to', 'cc', 'bcc', 'reply-to'], true);
 
-                if (!$headerValue) {
+                $headerValue = str_ireplace(array_keys($tokens), $tokens, $headerValue);
+                // Normalize scalars to string
+                if (is_array($headerValue)) {
+                    // leave arrays as-is (advanced usage)
+                } elseif (null !== $headerValue) {
+                    $headerValue = trim((string) $headerValue);
+                }
+
+                // For address headers, never remove an existing header due to empty custom value; just skip
+                if ($isAddressHeader && (!$headerValue || (is_array($headerValue) && 0 === count($headerValue)))) {
+                    continue;
+                }
+
+                // For non-address headers, allow clearing by setting empty value
+                if (!$isAddressHeader && !$headerValue) {
                     $messageHeaders->remove($headerKey);
                     continue;
                 }
 
                 try {
-                    if (in_array(strtolower($headerKey), ['from', 'to', 'cc', 'bcc', 'reply-to'])) {
+                    if ($isAddressHeader) {
                         // Handling headers that require MailboxListHeader
-                        $headerValue = array_map(fn ($address): Address => new Address($address),
-                            explode(',', $headerValue));
+                        if (!is_array($headerValue)) {
+                            $parts = array_filter(array_map('trim', explode(',', (string) $headerValue)), static fn($v) => '' !== $v);
+                            $headerValue = array_map(fn ($address): Address => new Address($address), $parts);
+                        }
                     }
                     if ($messageHeaders->has($headerKey)) {
                         $header = $messageHeaders->get($headerKey);
@@ -1907,7 +1924,10 @@ class MailHelper
                         $messageHeaders->addHeader($headerKey, $headerValue);
                     }
                 } catch (RfcComplianceException) {
-                    $messageHeaders->remove($headerKey);
+                    // If the custom address header is invalid, do not remove the existing one; only remove for non-address headers
+                    if (!$isAddressHeader) {
+                        $messageHeaders->remove($headerKey);
+                    }
                 }
             }
         }
