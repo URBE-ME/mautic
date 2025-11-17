@@ -1964,7 +1964,8 @@ class MailHelper
                                             $addresses[] = new Address((string) $email, $name !== null ? (string) $name : null);
                                         }
                                     } else {
-                                        foreach (Address::createArray((string) $v) as $addr) {
+                                        // Address::createArray expects an array, so wrap string in array
+                                        foreach (Address::createArray([(string) $v]) as $addr) {
                                             $addresses[] = $addr;
                                         }
                                     }
@@ -1980,7 +1981,8 @@ class MailHelper
                             }
                         } else {
                             // String: parse using Symfony parser to support "Name <email>"
-                            $parsed = Address::createArray((string) $headerValue);
+                            // Address::createArray expects an array, so wrap string in array
+                            $parsed = Address::createArray([(string) $headerValue]);
                             $headerValue = $isSingleAddressHeader ? ($parsed[0] ?? null) : $parsed;
                             if ($isSingleAddressHeader && null === $headerValue) {
                                 continue;
