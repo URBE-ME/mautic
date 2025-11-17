@@ -300,12 +300,20 @@ class MailHelper
         }
 
         // Set from email
+        // Check if custom From header is provided - if so, skip default From setting
+        $hasCustomFrom = !empty($this->headers) && isset($this->headers['From']);
+        
         if (!$isQueueFlush) {
-            $this->setFromForSingleMessage();
+            // Only set default From if no custom From header was provided
+            if (!$hasCustomFrom) {
+                $this->setFromForSingleMessage();
+            }
             $this->setReplyToForSingleMessage($this->email);
         } // from is set in flushQueue
 
-        if (empty($this->message->getReplyTo()) && !empty($this->getReplyTo())) {
+        // Only set default Reply-To if no custom Reply-To header was provided
+        $hasCustomReplyTo = !empty($this->headers) && isset($this->headers['Reply-To']);
+        if (empty($this->message->getReplyTo()) && !empty($this->getReplyTo()) && !$hasCustomReplyTo) {
             $this->setMessageReplyTo($this->getReplyTo());
         }
         // Set system return path if applicable
@@ -338,6 +346,30 @@ class MailHelper
             $this->setMessagePlainText();
 
             $this->setMessageHeaders();
+
+            // Ensure From header is always set before sending
+            // Only set default From if no custom From header was provided
+            $hasCustomFrom = !empty($this->headers) && isset($this->headers['From']);
+            if (empty($this->message->getFrom()) && !$hasCustomFrom) {
+                // If From is not set and no custom From header was provided, ensure we set it from our internal state
+                $from = $this->getFrom();
+                if (!$from->isEmpty()) {
+                    $this->setMessageFrom($from);
+                } else {
+                    // Fallback to system from if current from is empty
+                    $systemFrom = $this->getSystemFrom();
+                    if (!$systemFrom->isEmpty()) {
+                        $this->setMessageFrom($systemFrom);
+                    } else {
+                        $this->logError('Cannot send email: From address is empty and no system From address is configured.');
+                        $this->fatal = true;
+                    }
+                }
+            } elseif (empty($this->message->getFrom())) {
+                // Custom From was provided but is invalid/empty - log error but don't override with default
+                $this->logError('Custom From header was provided but is invalid or empty after token replacement.');
+                $this->fatal = true;
+            }
 
             if (!$isQueueFlush) {
                 // Replace token content
@@ -521,11 +553,16 @@ class MailHelper
 
                 $email = $this->getEmail();
 
-                if ($email && $email->getUseOwnerAsMailer()) {
-                    $this->setFrom($metadatum['from']->getEmail(), $metadatum['from']->getName());
-                    $this->setMessageFrom(new AddressDTO($metadatum['from']->getEmail(), $metadatum['from']->getName()));
-                } else {
-                    $this->setMessageFrom($this->getFrom());
+                // Check if custom From header is provided - if so, skip default From setting
+                $hasCustomFrom = !empty($this->headers) && isset($this->headers['From']);
+                
+                if (!$hasCustomFrom) {
+                    if ($email && $email->getUseOwnerAsMailer()) {
+                        $this->setFrom($metadatum['from']->getEmail(), $metadatum['from']->getName());
+                        $this->setMessageFrom(new AddressDTO($metadatum['from']->getEmail(), $metadatum['from']->getName()));
+                    } else {
+                        $this->setMessageFrom($this->getFrom());
+                    }
                 }
 
                 foreach ($metadatum['contacts'] as $email => $contact) {
