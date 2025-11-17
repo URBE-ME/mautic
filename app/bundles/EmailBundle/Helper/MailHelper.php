@@ -1911,10 +1911,40 @@ class MailHelper
 
                 try {
                     if ($isAddressHeader) {
-                        // Handling headers that require MailboxListHeader
-                        if (!is_array($headerValue)) {
-                            $parts = array_filter(array_map('trim', explode(',', (string) $headerValue)), static fn($v) => '' !== $v);
-                            $headerValue = array_map(fn ($address): Address => new Address($address), $parts);
+                        // Handle address headers; support display-name formats and arrays
+                        $isSingleAddressHeader = in_array($headerKeyLower, ['sender'], true);
+                        if (is_array($headerValue)) {
+                            $addresses = [];
+                            // Support associative arrays [email => name] and list arrays
+                            foreach ($headerValue as $k => $v) {
+                                if (is_int($k)) {
+                                    // List item - could be string "Name <email>" or [email => name]
+                                    if (is_array($v)) {
+                                        foreach ($v as $email => $name) {
+                                            $addresses[] = new Address((string) $email, $name !== null ? (string) $name : null);
+                                        }
+                                    } else {
+                                        foreach (Address::createArray((string) $v) as $addr) {
+                                            $addresses[] = $addr;
+                                        }
+                                    }
+                                } else {
+                                    // Associative: key is email, value is name
+                                    $addresses[] = new Address((string) $k, $v !== null ? (string) $v : null);
+                                }
+                            }
+                            $headerValue = $isSingleAddressHeader ? ($addresses[0] ?? null) : $addresses;
+                            if ($isSingleAddressHeader && null === $headerValue) {
+                                // nothing valid to set; skip
+                                continue;
+                            }
+                        } else {
+                            // String: parse using Symfony parser to support "Name <email>"
+                            $parsed = Address::createArray((string) $headerValue);
+                            $headerValue = $isSingleAddressHeader ? ($parsed[0] ?? null) : $parsed;
+                            if ($isSingleAddressHeader && null === $headerValue) {
+                                continue;
+                            }
                         }
                     }
                     if ($messageHeaders->has($headerKey)) {
